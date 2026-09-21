@@ -11,8 +11,6 @@ console.log("CHAKSWARI MARKETPLACE JS STARTED");
 
 const SUPABASE_URL = "https://afvgjmobxkkcgtmuedqj.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_tUX83g_zIzdRFMARlTnr7A_XTIQrlZe";
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicmVmIjoiYWZ2Z2ptb2J4a2tjZ3RtdWVkcWoiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc2MDMwMDI1MywiZXhwIjoyMDc1ODcyNjUzfQ.GXlKK0o4WYbJ-U2VHgCfSmJ7Sg4SxUgb_2-ivebVqcI";
-
 
 // Check Supabase library
 if (!window.supabase) {
