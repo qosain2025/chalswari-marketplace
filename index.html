@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Chakswari Marketplace</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Supabase JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <header class="header">
+    <div class="logo">
+      🛍️ <span>Chakswari</span> Marketplace
+    </div>
+
+    <button id="cartButton" class="cart-button">
+      🛒 Cart <span id="cartCount">0</span>
+    </button>
+  </header>
+
+  <section class="hero">
+    <h1>Order Anything From Chakswari</h1>
+    <p>Food, groceries, fashion, electronics and more — delivered to your home.</p>
+
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="Search for products..."
+    >
+  </section>
+
+  <main>
+
+    <section>
+      <h2>Stores</h2>
+      <div id="storesContainer" class="stores"></div>
+    </section>
+
+    <section>
+      <h2>Categories</h2>
+      <div id="categoriesContainer" class="categories"></div>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <h2>Products</h2>
+        <span id="productCount"></span>
+      </div>
+
+      <div id="productsContainer" class="products">
+        <p>Loading products...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CART -->
+  <div id="cartPanel" class="cart-panel">
