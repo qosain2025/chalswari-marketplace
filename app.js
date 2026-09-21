@@ -1,114 +1,269 @@
-console.log("CHAKSWARI APP JS IS RUNNING");
-const SUPABASE_URL = "https://afvgjmobxkkcgtmuedqj.supabase.co";
+// ============================================================
+// CHAKSWARI MARKETPLACE
+// Main JavaScript
+// ============================================================
+
+console.log("CHAKSWARI MARKETPLACE JS STARTED");
+
+// ============================================================
+// SUPABASE
+// ============================================================
+
+const SUPABASE_URL =
+  "https://afvgjmobxkkcgtmuedqj.supabase.co";
 
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicmVmIjoiYWZ2Z2ptb2J4a2tjZ3RtdWVkcWoiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc2MDMwMDI1MywiZXhwIjoyMDc1ODc2MjUzfQ.GXlKK0o4WYbJ-U2VHgCfSmJ7Sg4SxUgb_2-ivebVqcI";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicmVmIjoiYWZ2Z2ptb2J4a2tjZ3RtdWVkcWoiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc2MDMwMDI1MywiZXhwIjoyMDc1ODcyNjUzfQ.GXlKK0o4WYbJ-U2VHgCfSmJ7Sg4SxUgb_2-ivebVqcI";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
 
-let products = [];
+// Check Supabase library
+if (!window.supabase) {
+
+  console.error("Supabase library did not load.");
+
+  showPageError(
+    "Supabase could not be loaded. Please refresh the page."
+  );
+
+  throw new Error("Supabase library missing.");
+
+}
+
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+
+// ============================================================
+// APP DATA
+// ============================================================
+
 let stores = [];
 let categories = [];
+let products = [];
 let deliveryZones = [];
+
 let cart = [];
 
 
-// ===============================
-// LOAD EVERYTHING
-// ===============================
+// ============================================================
+// DOM READY
+// ============================================================
+
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    console.log("DOM READY");
+
+    setupButtons();
+
+    loadMarketplace();
+
+  }
+);
+
+
+// ============================================================
+// LOAD MARKETPLACE
+// ============================================================
 
 async function loadMarketplace() {
 
   console.log("Loading marketplace...");
 
-  await Promise.all([
-    loadStores(),
-    loadCategories(),
-    loadProducts(),
-    loadDeliveryZones()
-  ]);
+  try {
 
-  renderProducts(products);
+    setProductLoading();
+
+    await Promise.all([
+      loadStores(),
+      loadCategories(),
+      loadProducts(),
+      loadDeliveryZones()
+    ]);
+
+    renderProducts(products);
+
+    console.log("Marketplace loaded successfully.");
+
+  }
+
+  catch (error) {
+
+    console.error(
+      "Marketplace loading error:",
+      error
+    );
+
+    showPageError(
+      "We could not load the marketplace. Please refresh the page."
+    );
+
+  }
+
 }
 
 
-// ===============================
+// ============================================================
 // STORES
-// ===============================
+// ============================================================
 
 async function loadStores() {
 
-  const { data, error } = await supabaseClient
+  console.log("Loading stores...");
+
+  const {
+    data,
+    error
+  } = await supabaseClient
     .from("stores")
     .select("*")
     .eq("active", true)
     .order("name");
 
   if (error) {
-    console.error("Stores error:", error);
-    return;
+
+    console.error(
+      "Stores error:",
+      error
+    );
+
+    throw error;
+
   }
 
   stores = data || [];
 
   const container =
-    document.getElementById("storesContainer");
+    document.getElementById(
+      "storesContainer"
+    );
 
-  container.innerHTML = stores.map(store => `
-    <div
-      class="store-card"
-      onclick="filterStore(${store.id})"
-    >
-      <h3>${escapeHTML(store.name)}</h3>
-      <p>${escapeHTML(store.address || "")}</p>
-    </div>
-  `).join("");
+  if (!container) return;
+
+  if (!stores.length) {
+
+    container.innerHTML =
+      `<div class="loading-card">
+        No stores available.
+      </div>`;
+
+    return;
+
+  }
+
+  container.innerHTML =
+    stores
+      .map(
+        store => `
+
+          <div
+            class="store-card"
+            onclick="filterStore(${store.id})"
+          >
+
+            <h3>
+              ${escapeHTML(store.name)}
+            </h3>
+
+            <p>
+              ${escapeHTML(store.address || "")}
+            </p>
+
+          </div>
+
+        `
+      )
+      .join("");
+
 }
 
 
-// ===============================
+// ============================================================
 // CATEGORIES
-// ===============================
+// ============================================================
 
 async function loadCategories() {
 
-  const { data, error } = await supabaseClient
+  console.log("Loading categories...");
+
+  const {
+    data,
+    error
+  } = await supabaseClient
     .from("categories")
     .select("*")
     .eq("active", true)
     .order("name");
 
   if (error) {
-    console.error("Categories error:", error);
-    return;
+
+    console.error(
+      "Categories error:",
+      error
+    );
+
+    throw error;
+
   }
 
   categories = data || [];
 
   const container =
-    document.getElementById("categoriesContainer");
+    document.getElementById(
+      "categoriesContainer"
+    );
 
-  container.innerHTML = categories.map(category => `
-    <div
-      class="category-card"
-      onclick="filterCategory(${category.id})"
-    >
-      ${escapeHTML(category.name)}
-    </div>
-  `).join("");
+  if (!container) return;
+
+  if (!categories.length) {
+
+    container.innerHTML =
+      `<div class="loading-card">
+        No categories available.
+      </div>`;
+
+    return;
+
+  }
+
+  container.innerHTML =
+    categories
+      .map(
+        category => `
+
+          <div
+            class="category-card"
+            onclick="filterCategory(${category.id})"
+          >
+
+            ${escapeHTML(category.name)}
+
+          </div>
+
+        `
+      )
+      .join("");
+
 }
 
 
-// ===============================
+// ============================================================
 // PRODUCTS
-// ===============================
+// ============================================================
 
 async function loadProducts() {
 
-  const { data, error } = await supabaseClient
+  console.log("Loading products...");
+
+  const {
+    data,
+    error
+  } = await supabaseClient
     .from("products")
     .select(`
       *,
@@ -123,185 +278,373 @@ async function loadProducts() {
     .order("name");
 
   if (error) {
-    console.error("Products error:", error);
-    document.getElementById("productsContainer").innerHTML =
-      "<p>Could not load products.</p>";
-    return;
+
+    console.error(
+      "Products error:",
+      error
+    );
+
+    throw error;
+
   }
 
   products = data || [];
+
+  console.log(
+    "Products received:",
+    products.length
+  );
+
 }
 
 
-// ===============================
+// ============================================================
 // DELIVERY ZONES
-// ===============================
+// ============================================================
 
 async function loadDeliveryZones() {
 
-  const { data, error } = await supabaseClient
+  console.log("Loading delivery zones...");
+
+  const {
+    data,
+    error
+  } = await supabaseClient
     .from("delivery_zones")
     .select("*")
     .eq("active", true)
     .order("fee");
 
   if (error) {
-    console.error("Delivery zones error:", error);
-    return;
+
+    console.error(
+      "Delivery zones error:",
+      error
+    );
+
+    throw error;
+
   }
 
   deliveryZones = data || [];
 
   const select =
-    document.getElementById("deliveryZone");
+    document.getElementById(
+      "deliveryZone"
+    );
+
+  if (!select) return;
 
   select.innerHTML =
-    `<option value="">Select delivery area</option>` +
-    deliveryZones.map(zone => `
-      <option value="${zone.id}" data-fee="${zone.fee}">
-        ${escapeHTML(zone.name)} — Rs. ${Number(zone.fee)}
+    `
+      <option value="">
+        Select delivery area
       </option>
-    `).join("");
+    `;
+
+  deliveryZones.forEach(
+    zone => {
+
+      const option =
+        document.createElement("option");
+
+      option.value = zone.id;
+
+      option.dataset.fee =
+        zone.fee;
+
+      option.textContent =
+        `${zone.name} — Rs. ${Number(zone.fee).toLocaleString()}`;
+
+      select.appendChild(option);
+
+    }
+  );
+
 }
 
 
-// ===============================
+// ============================================================
 // RENDER PRODUCTS
-// ===============================
+// ============================================================
 
 function renderProducts(list) {
 
   const container =
-    document.getElementById("productsContainer");
+    document.getElementById(
+      "productsContainer"
+    );
 
-  document.getElementById("productCount").textContent =
-    `${list.length} products`;
+  const count =
+    document.getElementById(
+      "productCount"
+    );
 
-  if (!list.length) {
-    container.innerHTML =
-      "<p>No products found.</p>";
-    return;
+  if (!container) return;
+
+  if (count) {
+
+    count.textContent =
+      `${list.length} products`;
+
   }
 
-  container.innerHTML = list.map(product => {
 
-    const image =
-      product.image_url ||
-      "https://placehold.co/600x400?text=Product";
+  if (!list.length) {
 
-    return `
-      <div class="product-card">
-
-        <img
-          class="product-image"
-          src="${image}"
-          alt="${escapeHTML(product.name)}"
-        >
-
-        <div class="product-info">
-
-          <h3>${escapeHTML(product.name)}</h3>
-
-          <p>
-            ${escapeHTML(product.stores?.name || "")}
-          </p>
-
-          <div class="price">
-            Rs. ${Number(product.price).toLocaleString()}
-          </div>
-
-          <button
-            class="add-button"
-            onclick="addToCart(${product.id})"
-          >
-            Add to Cart
-          </button>
-
+    container.innerHTML =
+      `
+        <div class="loading-card">
+          No products found.
         </div>
+      `;
 
-      </div>
-    `;
+    return;
 
-  }).join("");
+  }
+
+
+  container.innerHTML =
+    list
+      .map(
+        product => {
+
+          const image =
+            product.image_url ||
+            "https://placehold.co/600x400?text=Product";
+
+
+          return `
+
+            <article
+              class="product-card"
+            >
+
+              <img
+                class="product-image"
+                src="${escapeHTML(image)}"
+                alt="${escapeHTML(product.name)}"
+                loading="lazy"
+                onerror="this.src='https://placehold.co/600x400?text=Product'"
+              >
+
+              <div class="product-info">
+
+                <h3>
+                  ${escapeHTML(product.name)}
+                </h3>
+
+                <p>
+                  ${escapeHTML(
+                    product.stores?.name || ""
+                  )}
+                </p>
+
+                <div class="price">
+                  Rs.
+                  ${Number(product.price).toLocaleString()}
+                </div>
+
+                <button
+                  class="add-button"
+                  type="button"
+                  onclick="addToCart(${product.id})"
+                >
+                  Add to Cart
+                </button>
+
+              </div>
+
+            </article>
+
+          `;
+
+        }
+      )
+      .join("");
+
 }
 
 
-// ===============================
+// ============================================================
 // SEARCH
-// ===============================
+// ============================================================
 
-document
-  .getElementById("searchInput")
-  .addEventListener("input", function () {
+function setupSearch() {
 
-    const search =
-      this.value.toLowerCase().trim();
-
-    const filtered = products.filter(product =>
-      product.name.toLowerCase().includes(search) ||
-      (product.stores?.name || "")
-        .toLowerCase()
-        .includes(search)
+  const searchInput =
+    document.getElementById(
+      "searchInput"
     );
 
-    renderProducts(filtered);
-  });
+  if (!searchInput) return;
 
 
-// ===============================
-// STORE FILTER
-// ===============================
+  searchInput.addEventListener(
+    "input",
+    () => {
+
+      const search =
+        searchInput.value
+          .toLowerCase()
+          .trim();
+
+
+      const filtered =
+        products.filter(
+          product => {
+
+            const productName =
+              (
+                product.name || ""
+              ).toLowerCase();
+
+            const storeName =
+              (
+                product.stores?.name || ""
+              ).toLowerCase();
+
+            return (
+              productName.includes(search) ||
+              storeName.includes(search)
+            );
+
+          }
+        );
+
+
+      renderProducts(filtered);
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// FILTER STORE
+// ============================================================
 
 function filterStore(storeId) {
 
   const filtered =
-    products.filter(product =>
-      product.store_id === storeId
+    products.filter(
+      product =>
+        Number(product.store_id) ===
+        Number(storeId)
     );
 
   renderProducts(filtered);
+
+  scrollToProducts();
+
 }
 
 
-// ===============================
-// CATEGORY FILTER
-// ===============================
+// ============================================================
+// FILTER CATEGORY
+// ============================================================
 
 function filterCategory(categoryId) {
 
   const filtered =
-    products.filter(product =>
-      product.category_id === categoryId
+    products.filter(
+      product =>
+        Number(product.category_id) ===
+        Number(categoryId)
     );
 
   renderProducts(filtered);
+
+  scrollToProducts();
+
 }
 
 
-// ===============================
+// ============================================================
 // CART
-// ===============================
+// ============================================================
 
 function addToCart(productId) {
 
   const product =
-    products.find(p => p.id === productId);
+    products.find(
+      item =>
+        Number(item.id) ===
+        Number(productId)
+    );
 
   if (!product) return;
 
+
   const existing =
-    cart.find(item => item.id === productId);
+    cart.find(
+      item =>
+        Number(item.id) ===
+        Number(productId)
+    );
+
 
   if (existing) {
+
     existing.quantity++;
-  } else {
-    cart.push({
-      ...product,
-      quantity: 1
-    });
+
   }
 
+  else {
+
+    cart.push({
+
+      ...product,
+
+      quantity: 1
+
+    });
+
+  }
+
+
   updateCart();
+
+  showToast(
+    `${product.name} added to cart`
+  );
+
+}
+
+
+function changeQuantity(
+  productId,
+  change
+) {
+
+  const item =
+    cart.find(
+      product =>
+        Number(product.id) ===
+        Number(productId)
+    );
+
+  if (!item) return;
+
+
+  item.quantity += change;
+
+
+  if (item.quantity <= 0) {
+
+    cart =
+      cart.filter(
+        product =>
+          Number(product.id) !==
+          Number(productId)
+      );
+
+  }
+
+
+  updateCart();
+
 }
 
 
@@ -309,118 +652,149 @@ function updateCart() {
 
   const count =
     cart.reduce(
-      (total, item) => total + item.quantity,
+      (total, item) =>
+        total + item.quantity,
       0
     );
 
-  document.getElementById("cartCount")
-    .textContent = count;
+
+  const cartCount =
+    document.getElementById(
+      "cartCount"
+    );
+
+  if (cartCount) {
+
+    cartCount.textContent =
+      count;
+
+  }
+
 
   renderCart();
+
 }
 
 
 function renderCart() {
 
   const container =
-    document.getElementById("cartItems");
+    document.getElementById(
+      "cartItems"
+    );
+
+  if (!container) return;
+
 
   if (!cart.length) {
 
     container.innerHTML =
-      "<p>Your cart is empty.</p>";
+      `
+        <p class="empty-message">
+          Your cart is empty.
+        </p>
+      `;
 
     updateTotals();
 
     return;
+
   }
+
 
   container.innerHTML =
-    cart.map(item => `
+    cart
+      .map(
+        item => `
 
-      <div class="cart-item">
+          <div class="cart-item">
 
-        <div>
-          <strong>
-            ${escapeHTML(item.name)}
-          </strong>
+            <div>
 
-          <br>
+              <strong>
+                ${escapeHTML(item.name)}
+              </strong>
 
-          Rs. ${Number(item.price).toLocaleString()}
-        </div>
+              <br>
 
-        <div>
+              <small>
+                Rs.
+                ${Number(item.price).toLocaleString()}
+              </small>
 
-          <button
-            onclick="changeQuantity(${item.id}, -1)"
-          >
-            −
-          </button>
+            </div>
 
-          ${item.quantity}
+            <div>
 
-          <button
-            onclick="changeQuantity(${item.id}, 1)"
-          >
-            +
-          </button>
+              <button
+                type="button"
+                onclick="changeQuantity(${item.id}, -1)"
+              >
+                −
+              </button>
 
-        </div>
+              ${item.quantity}
 
-      </div>
+              <button
+                type="button"
+                onclick="changeQuantity(${item.id}, 1)"
+              >
+                +
+              </button>
 
-    `).join("");
+            </div>
+
+          </div>
+
+        `
+      )
+      .join("");
+
 
   updateTotals();
+
 }
 
 
-function changeQuantity(productId, change) {
-
-  const item =
-    cart.find(item => item.id === productId);
-
-  if (!item) return;
-
-  item.quantity += change;
-
-  if (item.quantity <= 0) {
-    cart =
-      cart.filter(item => item.id !== productId);
-  }
-
-  updateCart();
-}
-
-
-// ===============================
+// ============================================================
 // TOTALS
-// ===============================
+// ============================================================
 
 function getSubtotal() {
 
   return cart.reduce(
     (total, item) =>
-      total + Number(item.price) * item.quantity,
+      total +
+      Number(item.price) *
+      item.quantity,
     0
   );
+
 }
 
 
 function getDeliveryFee() {
 
   const select =
-    document.getElementById("deliveryZone");
+    document.getElementById(
+      "deliveryZone"
+    );
 
-  const selected =
-    select.options[select.selectedIndex];
+  if (!select) return 0;
 
-  if (!selected) return 0;
+
+  const option =
+    select.options[
+      select.selectedIndex
+    ];
+
+  if (!option) return 0;
+
 
   return Number(
-    selected.dataset.fee || 0
+    option.dataset.fee || 0
   );
+
 }
 
 
@@ -435,345 +809,817 @@ function updateTotals() {
   const total =
     subtotal + delivery;
 
-  document.getElementById("subtotal")
-    .textContent =
-    subtotal.toLocaleString();
 
-  document.getElementById("deliveryFee")
-    .textContent =
-    delivery.toLocaleString();
+  const subtotalElement =
+    document.getElementById(
+      "subtotal"
+    );
 
-  document.getElementById("grandTotal")
-    .textContent =
-    total.toLocaleString();
+  const deliveryElement =
+    document.getElementById(
+      "deliveryFee"
+    );
 
-  document.getElementById("checkoutTotal")
-    .textContent =
-    total.toLocaleString();
+  const totalElement =
+    document.getElementById(
+      "grandTotal"
+    );
+
+  const checkoutElement =
+    document.getElementById(
+      "checkoutTotal"
+    );
+
+
+  if (subtotalElement) {
+
+    subtotalElement.textContent =
+      subtotal.toLocaleString();
+
+  }
+
+  if (deliveryElement) {
+
+    deliveryElement.textContent =
+      delivery.toLocaleString();
+
+  }
+
+  if (totalElement) {
+
+    totalElement.textContent =
+      total.toLocaleString();
+
+  }
+
+  if (checkoutElement) {
+
+    checkoutElement.textContent =
+      total.toLocaleString();
+
+  }
+
 }
 
 
-// ===============================
-// CART BUTTONS
-// ===============================
+// ============================================================
+// BUTTONS
+// ============================================================
 
-document
-  .getElementById("cartButton")
-  .addEventListener("click", () => {
+function setupButtons() {
 
-    document
-      .getElementById("cartPanel")
-      .classList.add("open");
-
-  });
+  setupSearch();
 
 
-document
-  .getElementById("closeCart")
-  .addEventListener("click", () => {
+  const cartButton =
+    document.getElementById(
+      "cartButton"
+    );
 
-    document
-      .getElementById("cartPanel")
-      .classList.remove("open");
+  const closeCart =
+    document.getElementById(
+      "closeCart"
+    );
 
-  });
+  const checkoutButton =
+    document.getElementById(
+      "checkoutButton"
+    );
+
+  const closeCheckout =
+    document.getElementById(
+      "closeCheckout"
+    );
+
+  const placeOrderButton =
+    document.getElementById(
+      "placeOrderButton"
+    );
+
+  const deliveryZone =
+    document.getElementById(
+      "deliveryZone"
+    );
+
+  const cartOverlay =
+    document.getElementById(
+      "cartOverlay"
+    );
+
+  const checkoutOverlay =
+    document.getElementById(
+      "checkoutOverlay"
+    );
 
 
-// ===============================
-// CHECKOUT
-// ===============================
+  if (cartButton) {
 
-document
-  .getElementById("checkoutButton")
-  .addEventListener("click", () => {
+    cartButton.addEventListener(
+      "click",
+      openCart
+    );
 
-    if (!cart.length) {
-      alert("Your cart is empty.");
-      return;
+  }
+
+
+  if (closeCart) {
+
+    closeCart.addEventListener(
+      "click",
+      closeCartPanel
+    );
+
+  }
+
+
+  if (cartOverlay) {
+
+    cartOverlay.addEventListener(
+      "click",
+      closeCartPanel
+    );
+
+  }
+
+
+  if (checkoutButton) {
+
+    checkoutButton.addEventListener(
+      "click",
+      openCheckout
+    );
+
+  }
+
+
+  if (closeCheckout) {
+
+    closeCheckout.addEventListener(
+      "click",
+      closeCheckoutModal
+    );
+
+  }
+
+
+  if (checkoutOverlay) {
+
+    checkoutOverlay.addEventListener(
+      "click",
+      closeCheckoutModal
+    );
+
+  }
+
+
+  if (placeOrderButton) {
+
+    placeOrderButton.addEventListener(
+      "click",
+      placeOrder
+    );
+
+  }
+
+
+  if (deliveryZone) {
+
+    deliveryZone.addEventListener(
+      "change",
+      updateTotals
+    );
+
+  }
+
+
+  document.addEventListener(
+    "keydown",
+    event => {
+
+      if (event.key === "Escape") {
+
+        closeCartPanel();
+
+        closeCheckoutModal();
+
+      }
+
     }
+  );
 
-    document
-      .getElementById("checkoutModal")
-      .classList.add("open");
-
-  });
+}
 
 
-document
-  .getElementById("closeCheckout")
-  .addEventListener("click", () => {
+// ============================================================
+// CART PANEL
+// ============================================================
 
-    document
-      .getElementById("checkoutModal")
-      .classList.remove("open");
+function openCart() {
 
-  });
+  const panel =
+    document.getElementById(
+      "cartPanel"
+    );
+
+  const overlay =
+    document.getElementById(
+      "cartOverlay"
+    );
 
 
-document
-  .getElementById("deliveryZone")
-  .addEventListener("change", updateTotals);
+  if (panel) {
+
+    panel.classList.add("open");
+
+  }
+
+  if (overlay) {
+
+    overlay.classList.add("open");
+
+  }
+
+}
 
 
-// ===============================
+function closeCartPanel() {
+
+  const panel =
+    document.getElementById(
+      "cartPanel"
+    );
+
+  const overlay =
+    document.getElementById(
+      "cartOverlay"
+    );
+
+
+  if (panel) {
+
+    panel.classList.remove("open");
+
+  }
+
+  if (overlay) {
+
+    overlay.classList.remove("open");
+
+  }
+
+}
+
+
+// ============================================================
+// CHECKOUT
+// ============================================================
+
+function openCheckout() {
+
+  if (!cart.length) {
+
+    showToast(
+      "Your cart is empty."
+    );
+
+    return;
+
+  }
+
+
+  const modal =
+    document.getElementById(
+      "checkoutModal"
+    );
+
+  const overlay =
+    document.getElementById(
+      "checkoutOverlay"
+    );
+
+
+  if (modal) {
+
+    modal.classList.add("open");
+
+  }
+
+  if (overlay) {
+
+    overlay.classList.add("open");
+
+  }
+
+  updateTotals();
+
+}
+
+
+function closeCheckoutModal() {
+
+  const modal =
+    document.getElementById(
+      "checkoutModal"
+    );
+
+  const overlay =
+    document.getElementById(
+      "checkoutOverlay"
+    );
+
+
+  if (modal) {
+
+    modal.classList.remove("open");
+
+  }
+
+  if (overlay) {
+
+    overlay.classList.remove("open");
+
+  }
+
+}
+
+
+// ============================================================
 // PLACE ORDER
-// ===============================
-
-document
-  .getElementById("placeOrderButton")
-  .addEventListener("click", placeOrder);
-
+// ============================================================
 
 async function placeOrder() {
 
   if (!cart.length) {
-    alert("Your cart is empty.");
+
+    showToast(
+      "Your cart is empty."
+    );
+
     return;
+
   }
+
 
   const name =
-    document.getElementById("customerName")
-      .value.trim();
+    document.getElementById(
+      "customerName"
+    ).value.trim();
 
   const phone =
-    document.getElementById("customerPhone")
-      .value.trim();
+    document.getElementById(
+      "customerPhone"
+    ).value.trim();
 
   const address =
-    document.getElementById("customerAddress")
-      .value.trim();
+    document.getElementById(
+      "customerAddress"
+    ).value.trim();
 
   const zone =
-    document.getElementById("deliveryZone")
-      .value;
+    document.getElementById(
+      "deliveryZone"
+    ).value;
 
   const payment =
-    document.getElementById("paymentMethod")
-      .value;
+    document.getElementById(
+      "paymentMethod"
+    ).value;
 
-  if (!name || !phone || !address || !zone) {
-    alert("Please complete all delivery details.");
+
+  if (
+    !name ||
+    !phone ||
+    !address ||
+    !zone
+  ) {
+
+    showToast(
+      "Please complete all delivery details."
+    );
+
     return;
+
   }
 
-  const subtotal = getSubtotal();
-  const delivery = getDeliveryFee();
-  const total = subtotal + delivery;
+
+  const subtotal =
+    getSubtotal();
+
+  const delivery =
+    getDeliveryFee();
+
+  const total =
+    subtotal + delivery;
+
 
   const selectedZone =
     deliveryZones.find(
-      z => String(z.id) === String(zone)
+      item =>
+        String(item.id) ===
+        String(zone)
     );
 
-  /*
-    For this first version we create the customer
-    and order in Supabase.
-  */
 
-  const { data: customer, error: customerError } =
-    await supabaseClient
-      .from("customers")
-      .insert({
-        name,
-        phone,
-        address
-      })
-      .select()
-      .single();
+  if (!selectedZone) {
 
-  if (customerError) {
-
-    console.error(customerError);
-
-    alert("Could not create customer record.");
+    showToast(
+      "Please select a delivery area."
+    );
 
     return;
+
   }
 
 
-  /*
-    This first version assumes the cart contains
-    products from one store.
+  const placeButton =
+    document.getElementById(
+      "placeOrderButton"
+    );
 
-    We will improve multi-store carts later.
-  */
+  if (placeButton) {
 
-  const storeId =
-    cart[0].store_id;
+    placeButton.disabled = true;
 
+    placeButton.textContent =
+      "Creating Order...";
 
-  const { data: order, error: orderError } =
-    await supabaseClient
-      .from("orders")
-      .insert({
-
-        customer_id: customer.id,
-
-        store_id: storeId,
-
-        delivery_zone_id:
-          selectedZone.id,
-
-        customer_name: name,
-
-        customer_phone: phone,
-
-        customer_address: address,
-
-        subtotal: subtotal,
-
-        delivery_fee: delivery,
-
-        total: total,
-
-        payment_method: payment,
-
-        payment_status:
-          payment === "COD"
-            ? "pending"
-            : "pending",
-
-        order_status: "pending"
-
-      })
-      .select()
-      .single();
-
-
-  if (orderError) {
-
-    console.error(orderError);
-
-    alert("Could not create order.");
-
-    return;
   }
 
 
-  /*
-    Add products to order_items
-  */
+  try {
 
-  const orderItems =
-    cart.map(item => ({
+    // --------------------------------------------------------
+    // CUSTOMER
+    // --------------------------------------------------------
 
-      order_id: order.id,
+    const {
+      data: customer,
+      error: customerError
+    } =
+      await supabaseClient
+        .from("customers")
+        .insert({
 
-      product_id: item.id,
+          name,
+          phone,
+          address
 
-      quantity: item.quantity,
-
-      price: item.price
-
-    }));
-
-
-  const { error: itemsError } =
-    await supabaseClient
-      .from("order_items")
-      .insert(orderItems);
-
-
-  if (itemsError) {
-
-    console.error(itemsError);
-
-    alert("Order was created but products could not be added.");
-
-    return;
-  }
+        })
+        .select()
+        .single();
 
 
-  /*
-    WhatsApp message
-  */
+    if (customerError) {
 
-  const whatsappNumber =
-    "923448343097";
+      throw customerError;
 
-  let message =
-    `New Marketplace Order%0A%0A`;
+    }
 
-  message +=
-    `Order ID: ${order.id}%0A`;
 
-  message +=
-    `Customer: ${name}%0A`;
+    // --------------------------------------------------------
+    // STORE
+    // --------------------------------------------------------
 
-  message +=
-    `Phone: ${phone}%0A`;
+    const storeId =
+      cart[0].store_id;
 
-  message +=
-    `Address: ${address}%0A%0A`;
 
-  message +=
-    `Items:%0A`;
+    // --------------------------------------------------------
+    // ORDER
+    // --------------------------------------------------------
 
-  cart.forEach(item => {
+    const {
+      data: order,
+      error: orderError
+    } =
+      await supabaseClient
+        .from("orders")
+        .insert({
+
+          customer_id:
+            customer.id,
+
+          store_id:
+            storeId,
+
+          delivery_zone_id:
+            selectedZone.id,
+
+          customer_name:
+            name,
+
+          customer_phone:
+            phone,
+
+          customer_address:
+            address,
+
+          subtotal,
+
+          delivery_fee:
+            delivery,
+
+          total,
+
+          payment_method:
+            payment,
+
+          payment_status:
+            "pending",
+
+          order_status:
+            "pending"
+
+        })
+        .select()
+        .single();
+
+
+    if (orderError) {
+
+      throw orderError;
+
+    }
+
+
+    // --------------------------------------------------------
+    // ORDER ITEMS
+    // --------------------------------------------------------
+
+    const orderItems =
+      cart.map(
+        item => ({
+
+          order_id:
+            order.id,
+
+          product_id:
+            item.id,
+
+          quantity:
+            item.quantity,
+
+          price:
+            item.price
+
+        })
+      );
+
+
+    const {
+      error: itemsError
+    } =
+      await supabaseClient
+        .from("order_items")
+        .insert(
+          orderItems
+        );
+
+
+    if (itemsError) {
+
+      throw itemsError;
+
+    }
+
+
+    // --------------------------------------------------------
+    // WHATSAPP
+    // --------------------------------------------------------
+
+    const whatsappNumber =
+      "923448343097";
+
+
+    let message =
+      `New Chakswari Marketplace Order\n\n`;
 
     message +=
-      `${item.name} x ${item.quantity} = Rs. ${
-        Number(item.price) * item.quantity
-      }%0A`;
+      `Order ID: ${order.id}\n`;
 
-  });
+    message +=
+      `Customer: ${name}\n`;
 
-  message +=
-    `%0ASubtotal: Rs. ${subtotal}`;
+    message +=
+      `Phone: ${phone}\n`;
 
-  message +=
-    `%0ADelivery: Rs. ${delivery}`;
+    message +=
+      `Address: ${address}\n`;
 
-  message +=
-    `%0ATotal: Rs. ${total}`;
+    message +=
+      `Delivery Area: ${selectedZone.name}\n\n`;
 
-  message +=
-    `%0APayment: ${payment}`;
-
-
-  const whatsappURL =
-    `https://wa.me/${whatsappNumber}?text=${message}`;
+    message +=
+      `Items:\n`;
 
 
-  window.open(
-    whatsappURL,
-    "_blank"
-  );
+    cart.forEach(
+      item => {
+
+        message +=
+          `${item.name} x ${item.quantity} = Rs. ${
+            Number(item.price) *
+            item.quantity
+          }\n`;
+
+      }
+    );
 
 
-  alert(
-    `Order #${order.id} created successfully!`
-  );
+    message +=
+      `\nSubtotal: Rs. ${subtotal}`;
+
+    message +=
+      `\nDelivery: Rs. ${delivery}`;
+
+    message +=
+      `\nTotal: Rs. ${total}`;
+
+    message +=
+      `\nPayment: ${payment}`;
 
 
-  cart = [];
+    const whatsappURL =
+      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
-  updateCart();
 
-  document
-    .getElementById("checkoutModal")
-    .classList.remove("open");
+    window.open(
+      whatsappURL,
+      "_blank"
+    );
+
+
+    showToast(
+      `Order #${order.id} created successfully`
+    );
+
+
+    cart = [];
+
+    updateCart();
+
+    closeCheckoutModal();
+
+    closeCartPanel();
+
+
+  }
+
+  catch (error) {
+
+    console.error(
+      "Order error:",
+      error
+    );
+
+
+    showToast(
+      "Could not place the order. Check the Console for details."
+    );
+
+  }
+
+
+  finally {
+
+    if (placeButton) {
+
+      placeButton.disabled = false;
+
+      placeButton.textContent =
+        "Place Order";
+
+    }
+
+  }
 
 }
 
 
-// ===============================
-// BASIC HTML SAFETY
-// ===============================
+// ============================================================
+// HELPERS
+// ============================================================
+
+function setProductLoading() {
+
+  const container =
+    document.getElementById(
+      "productsContainer"
+    );
+
+  if (!container) return;
+
+  container.innerHTML =
+    `
+      <div class="loading-card">
+        Loading products...
+      </div>
+    `;
+
+}
+
+
+function showPageError(message) {
+
+  const container =
+    document.getElementById(
+      "productsContainer"
+    );
+
+  if (!container) return;
+
+  container.innerHTML =
+    `
+      <div class="loading-card">
+
+        <strong>
+          Something went wrong
+        </strong>
+
+        <p style="margin-top:8px;">
+          ${escapeHTML(message)}
+        </p>
+
+      </div>
+    `;
+
+}
+
+
+function showToast(message) {
+
+  const toast =
+    document.getElementById(
+      "toast"
+    );
+
+  if (!toast) return;
+
+
+  toast.textContent =
+    message;
+
+  toast.classList.add(
+    "show"
+  );
+
+
+  setTimeout(
+    () => {
+
+      toast.classList.remove(
+        "show"
+      );
+
+    },
+    2500
+  );
+
+}
+
+
+function scrollToProducts() {
+
+  const section =
+    document.getElementById(
+      "productsContainer"
+    );
+
+  if (!section) return;
+
+
+  section.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+}
+
 
 function escapeHTML(value) {
 
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(
+    value ?? ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
 }
-
-
-// ===============================
-// START
-// ===============================
-
-loadMarketplace();
