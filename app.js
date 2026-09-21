@@ -1,3 +1,4 @@
+console.log("CHAKSWARI APP JS IS RUNNING");
 const SUPABASE_URL = "https://afvgjmobxkkcgtmuedqj.supabase.co";
 
 const SUPABASE_ANON_KEY =
