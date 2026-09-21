@@ -1,1876 +1,319 @@
-// ============================================================
-// CHAKSWARI MARKETPLACE
-// Main JavaScript
-// ============================================================
-
-console.log("CHAKSWARI MARKETPLACE JS STARTED");
-
-// ============================================================
-// SUPABASE
-// ============================================================
-
-const SUPABASE_URL =
-  "https://afvgjmobxkkcgtmuedqj.supabase.co";
-
-const SUPABASE_ANON_KEY =
-  "sb_publishable_tUX83g_zIzdRFMARlTnr7A_XTIQrlZe";
-
-
-// Check Supabase library
-if (!window.supabase) {
-
-  console.error("Supabase library did not load.");
-
-  throw new Error("Supabase library missing.");
-
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-
-const supabaseClient =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
-
-
-// ============================================================
-// APP DATA
-// ============================================================
-
-let stores = [];
-let categories = [];
-let products = [];
-let deliveryZones = [];
-
-let cart = [];
-
-
-// ============================================================
-// DOM READY
-// ============================================================
-
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-
-    console.log("DOM READY");
-
-    setupButtons();
-
-    loadMarketplace();
-
-  }
-);
-
-
-// ============================================================
-// LOAD MARKETPLACE
-// ============================================================
-
-async function loadMarketplace() {
-
-  console.log("Loading marketplace...");
-
-  setProductLoading();
-
-  /*
-    We use Promise.allSettled instead of Promise.all.
-
-    Why?
-
-    If one section has a problem, such as delivery zones,
-    the entire marketplace should NOT stop loading.
-
-    Stores, categories and products can still load.
-  */
-
-  const results =
-    await Promise.allSettled([
-
-      loadStores(),
-
-      loadCategories(),
-
-      loadProducts(),
-
-      loadDeliveryZones()
-
-    ]);
-
-
-  results.forEach(
-    (result, index) => {
-
-      if (result.status === "rejected") {
-
-        const sectionNames = [
-          "Stores",
-          "Categories",
-          "Products",
-          "Delivery Zones"
-        ];
-
-        console.error(
-          `${sectionNames[index]} failed:`,
-          result.reason
-        );
-
-      }
-
-    }
-  );
-
-
-  // Always render whatever products successfully loaded
-  renderProducts(products);
-
-  console.log(
-    "Marketplace loading finished."
-  );
-
+body {
+  font-family: Arial, sans-serif;
+  background: #f7f7f7;
+  color: #222;
 }
 
-
-// ============================================================
-// STORES
-// ============================================================
-
-async function loadStores() {
-
-  console.log("Loading stores...");
-
-  const {
-    data,
-    error
-  } = await supabaseClient
-
-    .from("stores")
-
-    .select("*")
-
-    .eq("active", true)
-
-    .order("name");
-
-
-  if (error) {
-
-    console.error(
-      "Stores error:",
-      error
-    );
-
-    throw error;
-
-  }
-
-
-  stores = data || [];
-
-
-  const container =
-    document.getElementById(
-      "storesContainer"
-    );
-
-
-  if (!container) return;
-
-
-  if (!stores.length) {
-
-    container.innerHTML =
-      `
-        <div class="loading-card">
-          No stores available.
-        </div>
-      `;
-
-    return;
-
-  }
-
-
-  container.innerHTML =
-    stores
-      .map(
-        store => `
-
-          <div
-            class="store-card"
-            onclick="filterStore(${store.id})"
-          >
-
-            <h3>
-              ${escapeHTML(store.name)}
-            </h3>
-
-            <p>
-              ${escapeHTML(
-                store.address || ""
-              )}
-            </p>
-
-          </div>
-
-        `
-      )
-      .join("");
-
-
-  console.log(
-    "Stores received:",
-    stores.length
-  );
-
+.header {
+  background: #111;
+  color: white;
+  padding: 16px 5%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-
-// ============================================================
-// CATEGORIES
-// ============================================================
-
-async function loadCategories() {
-
-  console.log("Loading categories...");
-
-  const {
-    data,
-    error
-  } = await supabaseClient
-
-    .from("categories")
-
-    .select("*")
-
-    .eq("active", true)
-
-    .order("name");
-
-
-  if (error) {
-
-    console.error(
-      "Categories error:",
-      error
-    );
-
-    throw error;
-
-  }
-
-
-  categories = data || [];
-
-
-  const container =
-    document.getElementById(
-      "categoriesContainer"
-    );
-
-
-  if (!container) return;
-
-
-  if (!categories.length) {
-
-    container.innerHTML =
-      `
-        <div class="loading-card">
-          No categories available.
-        </div>
-      `;
-
-    return;
-
-  }
-
-
-  container.innerHTML =
-    categories
-      .map(
-        category => `
-
-          <div
-            class="category-card"
-            onclick="filterCategory(${category.id})"
-          >
-
-            ${escapeHTML(
-              category.name
-            )}
-
-          </div>
-
-        `
-      )
-      .join("");
-
-
-  console.log(
-    "Categories received:",
-    categories.length
-  );
-
+.logo {
+  font-size: 20px;
+  font-weight: bold;
 }
 
-
-// ============================================================
-// PRODUCTS
-// ============================================================
-
-async function loadProducts() {
-
-  console.log("Loading products...");
-
-  const {
-    data,
-    error
-  } = await supabaseClient
-
-    .from("products")
-
-    .select(`
-      *,
-      stores (
-        name
-      ),
-      categories (
-        name
-      )
-    `)
-
-    .eq("active", true)
-
-    .order("name");
-
-
-  if (error) {
-
-    console.error(
-      "Products error:",
-      error
-    );
-
-    throw error;
-
-  }
-
-
-  products = data || [];
-
-
-  console.log(
-    "Products received:",
-    products.length
-  );
-
+.logo span {
+  color: #ff7a00;
 }
 
-
-// ============================================================
-// DELIVERY ZONES
-// ============================================================
-
-async function loadDeliveryZones() {
-
-  console.log("Loading delivery zones...");
-
-  const {
-    data,
-    error
-  } = await supabaseClient
-
-    .from("delivery_zones")
-
-    .select("*")
-
-    .eq("active", true)
-
-    .order("delivery_fee");
-
-
-  if (error) {
-
-    console.error(
-      "Delivery zones error:",
-      error
-    );
-
-    throw error;
-
-  }
-
-
-  deliveryZones = data || [];
-
-
-  const select =
-    document.getElementById(
-      "deliveryZone"
-    );
-
-
-  if (!select) return;
-
-
-  select.innerHTML =
-    `
-      <option value="">
-        Select delivery area
-      </option>
-    `;
-
-
-  deliveryZones.forEach(
-    zone => {
-
-      const option =
-        document.createElement(
-          "option"
-        );
-
-
-      option.value =
-        zone.id;
-
-
-      option.dataset.fee =
-        zone.delivery_fee;
-
-
-      option.textContent =
-        `${zone.name} — Rs. ${Number(
-          zone.delivery_fee
-        ).toLocaleString()}`;
-
-
-      select.appendChild(
-        option
-      );
-
-    }
-  );
-
-
-  console.log(
-    "Delivery zones received:",
-    deliveryZones.length
-  );
-
+.cart-button {
+  background: #ff7a00;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
-
-// ============================================================
-// RENDER PRODUCTS
-// ============================================================
-
-function renderProducts(list) {
-
-  const container =
-    document.getElementById(
-      "productsContainer"
-    );
-
-
-  const count =
-    document.getElementById(
-      "productCount"
-    );
-
-
-  if (!container) return;
-
-
-  if (count) {
-
-    count.textContent =
-      `${list.length} products`;
-
-  }
-
-
-  if (!list.length) {
-
-    container.innerHTML =
-      `
-        <div class="loading-card">
-          No products found.
-        </div>
-      `;
-
-    return;
-
-  }
-
-
-  container.innerHTML =
-    list
-      .map(
-        product => {
-
-          const image =
-            product.image_url ||
-            "https://placehold.co/600x400?text=Product";
-
-
-          return `
-
-            <article
-              class="product-card"
-            >
-
-              <img
-                class="product-image"
-                src="${escapeHTML(image)}"
-                alt="${escapeHTML(product.name)}"
-                loading="lazy"
-                onerror="this.src='https://placehold.co/600x400?text=Product'"
-              >
-
-              <div class="product-info">
-
-                <h3>
-                  ${escapeHTML(
-                    product.name
-                  )}
-                </h3>
-
-                <p>
-                  ${escapeHTML(
-                    product.stores?.name || ""
-                  )}
-                </p>
-
-                <div class="price">
-                  Rs.
-                  ${Number(
-                    product.price
-                  ).toLocaleString()}
-                </div>
-
-                <button
-                  class="add-button"
-                  type="button"
-                  onclick="addToCart(${product.id})"
-                >
-                  Add to Cart
-                </button>
-
-              </div>
-
-            </article>
-
-          `;
-
-        }
-      )
-      .join("");
-
+.hero {
+  background: linear-gradient(135deg, #111, #333);
+  color: white;
+  text-align: center;
+  padding: 55px 20px;
 }
 
-
-// ============================================================
-// SEARCH
-// ============================================================
-
-function setupSearch() {
-
-  const searchInput =
-    document.getElementById(
-      "searchInput"
-    );
-
-
-  if (!searchInput) return;
-
-
-  searchInput.addEventListener(
-    "input",
-    () => {
-
-      const search =
-        searchInput.value
-          .toLowerCase()
-          .trim();
-
-
-      const filtered =
-        products.filter(
-          product => {
-
-            const productName =
-              (
-                product.name || ""
-              ).toLowerCase();
-
-
-            const storeName =
-              (
-                product.stores?.name || ""
-              ).toLowerCase();
-
-
-            return (
-              productName.includes(
-                search
-              ) ||
-
-              storeName.includes(
-                search
-              )
-            );
-
-          }
-        );
-
-
-      renderProducts(
-        filtered
-      );
-
-    }
-  );
-
+.hero h1 {
+  font-size: 38px;
+  margin-bottom: 12px;
 }
 
-
-// ============================================================
-// FILTER STORE
-// ============================================================
-
-function filterStore(storeId) {
-
-  const filtered =
-    products.filter(
-      product =>
-        Number(
-          product.store_id
-        ) === Number(
-          storeId
-        )
-    );
-
-
-  renderProducts(
-    filtered
-  );
-
-
-  scrollToProducts();
-
+.hero p {
+  margin-bottom: 25px;
+  color: #ddd;
 }
 
-
-// ============================================================
-// FILTER CATEGORY
-// ============================================================
-
-function filterCategory(
-  categoryId
-) {
-
-  const filtered =
-    products.filter(
-      product =>
-        Number(
-          product.category_id
-        ) === Number(
-          categoryId
-        )
-    );
-
-
-  renderProducts(
-    filtered
-  );
-
-
-  scrollToProducts();
-
+#searchInput {
+  width: min(600px, 90%);
+  padding: 15px;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
 }
 
-
-// ============================================================
-// CART
-// ============================================================
-
-function addToCart(
-  productId
-) {
-
-  const product =
-    products.find(
-      item =>
-        Number(item.id) ===
-        Number(productId)
-    );
-
-
-  if (!product) return;
-
-
-  const existing =
-    cart.find(
-      item =>
-        Number(item.id) ===
-        Number(productId)
-    );
-
-
-  if (existing) {
-
-    existing.quantity++;
-
-  }
-
-  else {
-
-    cart.push({
-
-      ...product,
-
-      quantity: 1
-
-    });
-
-  }
-
-
-  updateCart();
-
-
-  showToast(
-    `${product.name} added to cart`
-  );
-
+main {
+  width: min(1200px, 94%);
+  margin: 30px auto;
 }
 
-
-// ============================================================
-// CHANGE QUANTITY
-// ============================================================
-
-function changeQuantity(
-  productId,
-  change
-) {
-
-  const item =
-    cart.find(
-      product =>
-        Number(product.id) ===
-        Number(productId)
-    );
-
-
-  if (!item) return;
-
-
-  item.quantity +=
-    change;
-
-
-  if (item.quantity <= 0) {
-
-    cart =
-      cart.filter(
-        product =>
-          Number(product.id) !==
-          Number(productId)
-      );
-
-  }
-
-
-  updateCart();
-
+section {
+  margin-bottom: 40px;
 }
 
-
-// ============================================================
-// UPDATE CART
-// ============================================================
-
-function updateCart() {
-
-  const count =
-    cart.reduce(
-      (total, item) =>
-        total + item.quantity,
-      0
-    );
-
-
-  const cartCount =
-    document.getElementById(
-      "cartCount"
-    );
-
-
-  if (cartCount) {
-
-    cartCount.textContent =
-      count;
-
-  }
-
-
-  renderCart();
-
+h2 {
+  margin-bottom: 18px;
 }
 
-
-// ============================================================
-// RENDER CART
-// ============================================================
-
-function renderCart() {
-
-  const container =
-    document.getElementById(
-      "cartItems"
-    );
-
-
-  if (!container) return;
-
-
-  if (!cart.length) {
-
-    container.innerHTML =
-      `
-        <p class="empty-message">
-          Your cart is empty.
-        </p>
-      `;
-
-    updateTotals();
-
-    return;
-
-  }
-
-
-  container.innerHTML =
-    cart
-      .map(
-        item => `
-
-          <div class="cart-item">
-
-            <div>
-
-              <strong>
-                ${escapeHTML(
-                  item.name
-                )}
-              </strong>
-
-              <br>
-
-              <small>
-                Rs.
-                ${Number(
-                  item.price
-                ).toLocaleString()}
-              </small>
-
-            </div>
-
-            <div>
-
-              <button
-                type="button"
-                onclick="changeQuantity(${item.id}, -1)"
-              >
-                −
-              </button>
-
-              ${item.quantity}
-
-              <button
-                type="button"
-                onclick="changeQuantity(${item.id}, 1)"
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-        `
-      )
-      .join("");
-
-
-  updateTotals();
-
+.stores,
+.categories {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-
-// ============================================================
-// SUBTOTAL
-// ============================================================
-
-function getSubtotal() {
-
-  return cart.reduce(
-    (total, item) =>
-      total +
-      Number(item.price) *
-      item.quantity,
-    0
-  );
-
+.store-card,
+.category-card {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid #eee;
+  transition: 0.2s;
 }
 
-
-// ============================================================
-// DELIVERY FEE
-// ============================================================
-
-function getDeliveryFee() {
-
-  const select =
-    document.getElementById(
-      "deliveryZone"
-    );
-
-
-  if (!select) return 0;
-
-
-  const option =
-    select.options[
-      select.selectedIndex
-    ];
-
-
-  if (!option) return 0;
-
-
-  return Number(
-    option.dataset.fee || 0
-  );
-
+.store-card:hover,
+.category-card:hover {
+  transform: translateY(-3px);
+  border-color: #ff7a00;
 }
 
-
-// ============================================================
-// UPDATE TOTALS
-// ============================================================
-
-function updateTotals() {
-
-  const subtotal =
-    getSubtotal();
-
-
-  const delivery =
-    getDeliveryFee();
-
-
-  const total =
-    subtotal +
-    delivery;
-
-
-  const subtotalElement =
-    document.getElementById(
-      "subtotal"
-    );
-
-
-  const deliveryElement =
-    document.getElementById(
-      "deliveryFee"
-    );
-
-
-  const totalElement =
-    document.getElementById(
-      "grandTotal"
-    );
-
-
-  const checkoutElement =
-    document.getElementById(
-      "checkoutTotal"
-    );
-
-
-  if (subtotalElement) {
-
-    subtotalElement.textContent =
-      subtotal.toLocaleString();
-
-  }
-
-
-  if (deliveryElement) {
-
-    deliveryElement.textContent =
-      delivery.toLocaleString();
-
-  }
-
-
-  if (totalElement) {
-
-    totalElement.textContent =
-      total.toLocaleString();
-
-  }
-
-
-  if (checkoutElement) {
-
-    checkoutElement.textContent =
-      total.toLocaleString();
-
-  }
-
+.store-card h3 {
+  margin-bottom: 5px;
 }
 
-
-// ============================================================
-// BUTTONS
-// ============================================================
-
-function setupButtons() {
-
-  setupSearch();
-
-
-  const cartButton =
-    document.getElementById(
-      "cartButton"
-    );
-
-
-  const closeCart =
-    document.getElementById(
-      "closeCart"
-    );
-
-
-  const checkoutButton =
-    document.getElementById(
-      "checkoutButton"
-    );
-
-
-  const closeCheckout =
-    document.getElementById(
-      "closeCheckout"
-    );
-
-
-  const placeOrderButton =
-    document.getElementById(
-      "placeOrderButton"
-    );
-
-
-  const deliveryZone =
-    document.getElementById(
-      "deliveryZone"
-    );
-
-
-  const cartOverlay =
-    document.getElementById(
-      "cartOverlay"
-    );
-
-
-  const checkoutOverlay =
-    document.getElementById(
-      "checkoutOverlay"
-    );
-
-
-  if (cartButton) {
-
-    cartButton.addEventListener(
-      "click",
-      openCart
-    );
-
-  }
-
-
-  if (closeCart) {
-
-    closeCart.addEventListener(
-      "click",
-      closeCartPanel
-    );
-
-  }
-
-
-  if (cartOverlay) {
-
-    cartOverlay.addEventListener(
-      "click",
-      closeCartPanel
-    );
-
-  }
-
-
-  if (checkoutButton) {
-
-    checkoutButton.addEventListener(
-      "click",
-      openCheckout
-    );
-
-  }
-
-
-  if (closeCheckout) {
-
-    closeCheckout.addEventListener(
-      "click",
-      closeCheckoutModal
-    );
-
-  }
-
-
-  if (checkoutOverlay) {
-
-    checkoutOverlay.addEventListener(
-      "click",
-      closeCheckoutModal
-    );
-
-  }
-
-
-  if (placeOrderButton) {
-
-    placeOrderButton.addEventListener(
-      "click",
-      placeOrder
-    );
-
-  }
-
-
-  if (deliveryZone) {
-
-    deliveryZone.addEventListener(
-      "change",
-      updateTotals
-    );
-
-  }
-
-
-  document.addEventListener(
-    "keydown",
-    event => {
-
-      if (event.key === "Escape") {
-
-        closeCartPanel();
-
-        closeCheckoutModal();
-
-      }
-
-    }
-  );
-
+.store-card p {
+  color: #777;
+  font-size: 14px;
 }
 
-
-// ============================================================
-// CART PANEL
-// ============================================================
-
-function openCart() {
-
-  const panel =
-    document.getElementById(
-      "cartPanel"
-    );
-
-
-  const overlay =
-    document.getElementById(
-      "cartOverlay"
-    );
-
-
-  if (panel) {
-
-    panel.classList.add(
-      "open"
-    );
-
-  }
-
-
-  if (overlay) {
-
-    overlay.classList.add(
-      "open"
-    );
-
-  }
-
+.products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 18px;
 }
 
-
-// ============================================================
-// CLOSE CART
-// ============================================================
-
-function closeCartPanel() {
-
-  const panel =
-    document.getElementById(
-      "cartPanel"
-    );
-
-
-  const overlay =
-    document.getElementById(
-      "cartOverlay"
-    );
-
-
-  if (panel) {
-
-    panel.classList.remove(
-      "open"
-    );
-
-  }
-
-
-  if (overlay) {
-
-    overlay.classList.remove(
-      "open"
-    );
-
-  }
-
+.product-card {
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.07);
 }
 
-
-// ============================================================
-// CHECKOUT
-// ============================================================
-
-function openCheckout() {
-
-  if (!cart.length) {
-
-    showToast(
-      "Your cart is empty."
-    );
-
-    return;
-
-  }
-
-
-  const modal =
-    document.getElementById(
-      "checkoutModal"
-    );
-
-
-  const overlay =
-    document.getElementById(
-      "checkoutOverlay"
-    );
-
-
-  if (modal) {
-
-    modal.classList.add(
-      "open"
-    );
-
-  }
-
-
-  if (overlay) {
-
-    overlay.classList.add(
-      "open"
-    );
-
-  }
-
-
-  updateTotals();
-
+.product-image {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  background: #eee;
 }
 
-
-// ============================================================
-// CLOSE CHECKOUT
-// ============================================================
-
-function closeCheckoutModal() {
-
-  const modal =
-    document.getElementById(
-      "checkoutModal"
-    );
-
-
-  const overlay =
-    document.getElementById(
-      "checkoutOverlay"
-    );
-
-
-  if (modal) {
-
-    modal.classList.remove(
-      "open"
-    );
-
-  }
-
-
-  if (overlay) {
-
-    overlay.classList.remove(
-      "open"
-    );
-
-  }
-
+.product-info {
+  padding: 15px;
 }
 
-
-// ============================================================
-// PLACE ORDER
-// ============================================================
-
-async function placeOrder() {
-
-  if (!cart.length) {
-
-    showToast(
-      "Your cart is empty."
-    );
-
-    return;
-
-  }
-
-
-  const name =
-    document.getElementById(
-      "customerName"
-    ).value.trim();
-
-
-  const phone =
-    document.getElementById(
-      "customerPhone"
-    ).value.trim();
-
-
-  const address =
-    document.getElementById(
-      "customerAddress"
-    ).value.trim();
-
-
-  const zone =
-    document.getElementById(
-      "deliveryZone"
-    ).value;
-
-
-  const payment =
-    document.getElementById(
-      "paymentMethod"
-    ).value;
-
-
-  if (
-    !name ||
-    !phone ||
-    !address ||
-    !zone
-  ) {
-
-    showToast(
-      "Please complete all delivery details."
-    );
-
-    return;
-
-  }
-
-
-  const subtotal =
-    getSubtotal();
-
-
-  const delivery =
-    getDeliveryFee();
-
-
-  const total =
-    subtotal +
-    delivery;
-
-
-  const selectedZone =
-    deliveryZones.find(
-      item =>
-        String(item.id) ===
-        String(zone)
-    );
-
-
-  if (!selectedZone) {
-
-    showToast(
-      "Please select a delivery area."
-    );
-
-    return;
-
-  }
-
-
-  const placeButton =
-    document.getElementById(
-      "placeOrderButton"
-    );
-
-
-  if (placeButton) {
-
-    placeButton.disabled =
-      true;
-
-    placeButton.textContent =
-      "Creating Order...";
-
-  }
-
-
-  try {
-
-    // --------------------------------------------------------
-    // CUSTOMER
-    // --------------------------------------------------------
-
-    const {
-      data: customer,
-      error: customerError
-    } =
-      await supabaseClient
-
-        .from("customers")
-
-        .insert({
-
-          name,
-
-          phone,
-
-          address
-
-        })
-
-        .select()
-
-        .single();
-
-
-    if (customerError) {
-
-      throw customerError;
-
-    }
-
-
-    // --------------------------------------------------------
-    // STORE
-    // --------------------------------------------------------
-
-    const storeId =
-      cart[0].store_id;
-
-
-    // --------------------------------------------------------
-    // ORDER
-    // --------------------------------------------------------
-
-    const {
-      data: order,
-      error: orderError
-    } =
-      await supabaseClient
-
-        .from("orders")
-
-        .insert({
-
-          customer_id:
-            customer.id,
-
-          store_id:
-            storeId,
-
-          delivery_zone_id:
-            selectedZone.id,
-
-          customer_name:
-            name,
-
-          customer_phone:
-            phone,
-
-          customer_address:
-            address,
-
-          subtotal,
-
-          delivery_fee:
-            delivery,
-
-          total,
-
-          payment_method:
-            payment,
-
-          payment_status:
-            "pending",
-
-          order_status:
-            "pending"
-
-        })
-
-        .select()
-
-        .single();
-
-
-    if (orderError) {
-
-      throw orderError;
-
-    }
-
-
-    // --------------------------------------------------------
-    // ORDER ITEMS
-    // --------------------------------------------------------
-
-    const orderItems =
-      cart.map(
-        item => ({
-
-          order_id:
-            order.id,
-
-          product_id:
-            item.id,
-
-          quantity:
-            item.quantity,
-
-          price:
-            item.price
-
-        })
-      );
-
-
-    const {
-      error: itemsError
-    } =
-      await supabaseClient
-
-        .from("order_items")
-
-        .insert(
-          orderItems
-        );
-
-
-    if (itemsError) {
-
-      throw itemsError;
-
-    }
-
-
-    // --------------------------------------------------------
-    // WHATSAPP
-    // --------------------------------------------------------
-
-    const whatsappNumber =
-      "923448343097";
-
-
-    let message =
-      `New Chakswari Marketplace Order\n\n`;
-
-
-    message +=
-      `Order ID: ${order.id}\n`;
-
-
-    message +=
-      `Customer: ${name}\n`;
-
-
-    message +=
-      `Phone: ${phone}\n`;
-
-
-    message +=
-      `Address: ${address}\n`;
-
-
-    message +=
-      `Delivery Area: ${selectedZone.name}\n\n`;
-
-
-    message +=
-      `Items:\n`;
-
-
-    cart.forEach(
-      item => {
-
-        message +=
-          `${item.name} x ${item.quantity} = Rs. ${
-            Number(item.price) *
-            item.quantity
-          }\n`;
-
-      }
-    );
-
-
-    message +=
-      `\nSubtotal: Rs. ${subtotal}`;
-
-
-    message +=
-      `\nDelivery: Rs. ${delivery}`;
-
-
-    message +=
-      `\nTotal: Rs. ${total}`;
-
-
-    message +=
-      `\nPayment: ${payment}`;
-
-
-    const whatsappURL =
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-        message
-      )}`;
-
-
-    window.open(
-      whatsappURL,
-      "_blank"
-    );
-
-
-    showToast(
-      `Order #${order.id} created successfully`
-    );
-
-
-    cart = [];
-
-
-    updateCart();
-
-
-    closeCheckoutModal();
-
-
-    closeCartPanel();
-
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "Order error:",
-      error
-    );
-
-
-    showToast(
-      "Could not place the order. Check the Console for details."
-    );
-
-  }
-
-
-  finally {
-
-    if (placeButton) {
-
-      placeButton.disabled =
-        false;
-
-      placeButton.textContent =
-        "Place Order";
-
-    }
-
-  }
-
+.product-info h3 {
+  margin-bottom: 7px;
 }
 
-
-// ============================================================
-// LOADING
-// ============================================================
-
-function setProductLoading() {
-
-  const container =
-    document.getElementById(
-      "productsContainer"
-    );
-
-
-  if (!container) return;
-
-
-  container.innerHTML =
-    `
-      <div class="loading-card">
-        Loading products...
-      </div>
-    `;
-
+.product-info p {
+  color: #777;
+  font-size: 14px;
+  margin-bottom: 10px;
 }
 
-
-// ============================================================
-// TOAST
-// ============================================================
-
-function showToast(
-  message
-) {
-
-  const toast =
-    document.getElementById(
-      "toast"
-    );
-
-
-  if (!toast) return;
-
-
-  toast.textContent =
-    message;
-
-
-  toast.classList.add(
-    "show"
-  );
-
-
-  setTimeout(
-    () => {
-
-      toast.classList.remove(
-        "show"
-      );
-
-    },
-    2500
-  );
-
+.price {
+  font-size: 19px;
+  font-weight: bold;
+  margin-bottom: 12px;
 }
 
-
-// ============================================================
-// SCROLL
-// ============================================================
-
-function scrollToProducts() {
-
-  const section =
-    document.getElementById(
-      "productsContainer"
-    );
-
-
-  if (!section) return;
-
-
-  section.scrollIntoView({
-
-    behavior: "smooth",
-
-    block: "start"
-
-  });
-
+.add-button {
+  width: 100%;
+  padding: 11px;
+  background: #111;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
+.add-button:hover {
+  background: #ff7a00;
+}
 
-// ============================================================
-// SECURITY HELPER
-// ============================================================
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-function escapeHTML(
-  value
-) {
+#productCount {
+  color: #777;
+}
 
-  return String(
-    value ?? ""
-  )
+.cart-panel {
+  position: fixed;
+  right: -420px;
+  top: 0;
+  width: 400px;
+  max-width: 95%;
+  height: 100vh;
+  background: white;
+  z-index: 500;
+  padding: 20px;
+  box-shadow: -5px 0 20px rgba(0,0,0,0.2);
+  transition: 0.3s;
+  overflow-y: auto;
+}
 
-    .replace(
-      /&/g,
-      "&amp;"
-    )
+.cart-panel.open {
+  right: 0;
+}
 
-    .replace(
-      /</g,
-      "&lt;"
-    )
+.cart-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
 
-    .replace(
-      />/g,
-      "&gt;"
-    )
+.cart-header button,
+.close-modal {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
 
-    .replace(
-      /"/g,
-      "&quot;"
-    )
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
 
-    .replace(
-      /'/g,
-      "&#039;"
-    );
+.cart-item button {
+  padding: 3px 7px;
+}
 
+.cart-summary {
+  margin-top: 20px;
+}
+
+.cart-summary p {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+
+.total {
+  font-size: 20px;
+}
+
+.checkout-button {
+  width: 100%;
+  padding: 14px;
+  background: #ff7a00;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 600;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal.open {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  width: min(500px, 100%);
+  padding: 25px;
+  border-radius: 15px;
+  position: relative;
+}
+
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  width: 100%;
+  padding: 13px;
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.modal-content textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.close-modal {
+  position: absolute;
+  right: 18px;
+  top: 15px;
+}
+
+.checkout-total {
+  font-size: 21px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+
+  .hero h1 {
+    font-size: 28px;
+  }
+
+  .cart-panel {
+    width: 100%;
+  }
+
+  .products {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .product-image {
+    height: 130px;
+  }
 }
